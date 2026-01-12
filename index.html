@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BAEK Labs | Kinetic Refined Zone</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+    <style>
+        body { margin: 0; padding: 0; background-color: #ffffff; overflow: hidden; cursor: crosshair; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+
+<script>
+let particles = [];
+const numParticles = 10000; 
+
+function setup() {
+    createCanvas(windowWidth, windowHeight);
+    for (let i = 0; i < numParticles; i++) {
+        particles.push(new Particle());
+    }
+}
+
+function draw() {
+    background(255); 
+
+    for (let p of particles) {
+        p.update();
+        p.bounce();
+        p.interact();
+        p.show();
+    }
+}
+
+class Particle {
+    constructor() {
+        this.pos = createVector(width / 2, height / 2);
+        
+        // 초기 등장 폭발력 1.5배 상향 유지
+        this.vel = p5.Vector.random2D().mult(random(15, 180)); 
+        
+        this.baseSpeed = random() > 0.9 ? random(1.2, 2.1) : random(0.15, 0.9);
+        this.origVel = p5.Vector.random2D().mult(this.baseSpeed);
+        
+        let angle = random(TWO_PI);
+        let r = random(200); 
+        this.offset = createVector(r * cos(angle), r * sin(angle));
+        
+        // 입자 크기 밸런스 유지 (소 70%, 대 60%)
+        let rChance = random(1);
+        if (rChance > 0.993) {
+            this.r = random(10.8, 16.2); 
+        } else if (rChance > 0.88) {
+            this.r = random(5, 9); 
+        } else {
+            this.r = random(1.6, 3.7); 
+        }
+
+        this.isPressed = false;
+    }
+
+    update() {
+        this.pos.add(this.vel);
+        if (!mouseIsPressed && this.vel.mag() > this.baseSpeed) {
+            this.vel.mult(0.94); 
+        }
+    }
+
+    interact() {
+        let mouse = createVector(mouseX, mouseY);
+        
+        if (mouseIsPressed) {
+            let target = p5.Vector.add(mouse, this.offset);
+            let arrive = p5.Vector.sub(target, this.pos);
+            let dist = arrive.mag();
+            
+            if (dist < 40) {
+                this.vel.mult(0.8);
+                this.vel.add(p5.Vector.random2D().mult(0.05)); 
+            } else {
+                let speed = map(dist, 0, width, 45, 225); 
+                arrive.setMag(speed);
+                this.vel = p5.Vector.lerp(this.vel, arrive, 0.8);
+            }
+            this.isPressed = true;
+        } else {
+            if (this.isPressed) {
+                let scatterVel = p5.Vector.random2D().mult(random(120, 240));
+                this.vel = scatterVel;
+                this.isPressed = false;
+            }
+            
+            // [수정] 마우스 영향 영역을 70%로 축소 (기존 160 -> 112)
+            let d = p5.Vector.dist(this.pos, mouse);
+            if (d < 112) { 
+                let flee = p5.Vector.sub(this.pos, mouse);
+                flee.setMag(3.5); // 좁아진 만큼 더 민첩하게 튕겨나가도록 상향
+                this.vel.add(flee); 
+            } else {
+                this.vel.x = lerp(this.vel.x, this.origVel.x, 0.06);
+                this.vel.y = lerp(this.vel.y, this.origVel.y, 0.06);
+            }
+        }
+    }
+
+    bounce() {
+        if (this.pos.x <= 0 || this.pos.x >= width) {
+            this.vel.x *= -1;
+            this.origVel.x *= -1;
+            this.pos.x = constrain(this.pos.x, 0, width);
+        }
+        if (this.pos.y <= 0 || this.pos.y >= height) {
+            this.vel.y *= -1;
+            this.origVel.y *= -1;
+            this.pos.y = constrain(this.pos.y, 0, height);
+        }
+    }
+
+    show() {
+        noStroke();
+        fill(0); 
+        ellipse(this.pos.x, this.pos.y, this.r);
+    }
+}
+
+function windowResized() {
+    resizeCanvas(windowWidth, windowHeight);
+}
+</script>
+</body>
+</html>
