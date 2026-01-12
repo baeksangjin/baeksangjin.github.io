@@ -68,13 +68,15 @@ class Particle {
             let arrive = p5.Vector.sub(target, this.pos);
             let dist = arrive.mag();
             
-            if (dist < 40) {
-                this.vel.mult(0.8);
-                this.vel.add(p5.Vector.random2D().mult(0.05));
+            // 유기적인 움직임 복구: 완전히 멈추지 않고 미세한 저항감 유지
+            if (dist < 15) { 
+                this.vel.mult(0.7); // 0.5보다 높여서 탄성을 줌
+                this.vel.add(p5.Vector.random2D().mult(0.3)); // 살아있는 진동 추가
             } else {
-                let speed = map(dist, 0, width, 45, 225);
+                let speed = map(dist, 0, width, 60, 280); 
                 arrive.setMag(speed);
-                this.vel = p5.Vector.lerp(this.vel, arrive, 0.8);
+                // Lerp 수치를 조절하여 쫀득한 추격감 재현
+                this.vel = p5.Vector.lerp(this.vel, arrive, 0.25); 
             }
             this.isPressed = true;
         } else {
