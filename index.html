@@ -13,13 +13,14 @@
         .mode-btn {
             background: transparent; border: 1px solid #000000; padding: 14px 32px; border-radius: 0;
             font-family: 'Montserrat', sans-serif; font-size: 10px; font-weight: 400; letter-spacing: 5px;
-            cursor: pointer; transition: all 0.5s cubic-bezier(0.19, 1, 0.22, 1);
-            color: #000000; outline: none; text-transform: uppercase; display: inline-block; text-align: center; min-width: 140px;
+            cursor: pointer; color: #000000; outline: none; text-transform: uppercase; 
+            display: inline-block; text-align: center; min-width: 140px;
+            -webkit-tap-highlight-color: transparent;
+            /* Hover/Active box effect completely removed */
         }
-        .mode-btn:hover { background: #000000; color: #ffffff; }
+        
         body.dark-mode { background-color: #000000; }
         body.dark-mode .mode-btn { border-color: #ffffff; color: #ffffff; }
-        body.dark-mode .mode-btn:hover { background: #ffffff; color: #000000; }
     </style>
 </head>
 <body id="main-body">
@@ -42,7 +43,8 @@ let idlePos;
 
 function setup() {
     createCanvas(windowWidth, windowHeight);
-    numParticles = (windowWidth < 768) ? 5500 : 11000;
+    // Mobile: 60% of 11,000 = 6,600
+    numParticles = (windowWidth < 768) ? 6600 : 11000;
     idlePos = createVector(width / 2, height / 2);
     
     for (let i = 0; i < numParticles; i++) {
