@@ -66,19 +66,11 @@ function playStaccatoTick() {
     let baseFreq, decayTime, volume;
 
     if (!isDark) { 
-        osc.type = 'triangle';
-        baseFreq = 5000;   
-        decayTime = 0.008; 
-        volume = 0.05;     
-        filter.type = 'highpass';
-        filter.frequency.setValueAtTime(4000, audioCtx.currentTime);
+        osc.type = 'triangle'; baseFreq = 5000; decayTime = 0.008; volume = 0.05;     
+        filter.type = 'highpass'; filter.frequency.setValueAtTime(4000, audioCtx.currentTime);
     } else {
-        osc.type = 'sine';     
-        baseFreq = 1200; 
-        decayTime = 0.015; 
-        volume = 0.1;
-        filter.type = 'bandpass';
-        filter.frequency.setValueAtTime(1200, audioCtx.currentTime);
+        osc.type = 'sine'; baseFreq = 1200; decayTime = 0.015; volume = 0.1;
+        filter.type = 'bandpass'; filter.frequency.setValueAtTime(1200, audioCtx.currentTime);
     }
     
     osc.frequency.setValueAtTime(baseFreq, audioCtx.currentTime); 
@@ -86,12 +78,8 @@ function playStaccatoTick() {
     gain.gain.linearRampToValueAtTime(volume, audioCtx.currentTime + 0.001);
     gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + decayTime);
     
-    osc.connect(filter);
-    filter.connect(gain);
-    gain.connect(audioCtx.destination);
-    
-    osc.start();
-    osc.stop(audioCtx.currentTime + decayTime + 0.02);
+    osc.connect(filter); filter.connect(gain); gain.connect(audioCtx.destination);
+    osc.start(); osc.stop(audioCtx.currentTime + decayTime + 0.02);
 }
 
 function draw() {
@@ -109,19 +97,15 @@ function draw() {
 
     let targetX, targetY;
     if (millis() - lastInputTime > 2000) {
-        let speedVariation = noise(noiseSpeed) * 0.015;
-        noiseX += speedVariation;
-        noiseY += speedVariation;
-        noiseSpeed += 0.01;
-        targetX = noise(noiseX) * width;
-        targetY = noise(noiseY) * height;
+        let speedVariation = noise(noiseSpeed) * 0.01; 
+        noiseX += speedVariation; noiseY += speedVariation; noiseSpeed += 0.005;
+        targetX = noise(noiseX) * width; targetY = noise(noiseY) * height;
     } else {
-        targetX = mouseX;
-        targetY = mouseY;
+        targetX = mouseX; targetY = mouseY;
     }
 
-    currentCursor.x = lerp(currentCursor.x, targetX, 0.15);
-    currentCursor.y = lerp(currentCursor.y, targetY, 0.15);
+    currentCursor.x = lerp(currentCursor.x, targetX, 0.1);
+    currentCursor.y = lerp(currentCursor.y, targetY, 0.1);
 
     for (let p of particles) {
         p.update();
@@ -134,11 +118,15 @@ function draw() {
 class Particle {
     constructor() {
         this.pos = createVector(random(width), random(height));
-        this.vel = p5.Vector.random2D().mult(random(5, 60));
-        this.baseSpeed = random() > 0.9 ? random(1.2, 2.1) : random(0.15, 0.9);
+        
+        let speedMult = (windowWidth < 768) ? random(2, 15) : random(5, 60);
+        this.vel = p5.Vector.random2D().mult(speedMult);
+        
+        let rawSpeed = random() > 0.9 ? random(1.0, 1.8) : random(0.1, 0.6);
+        this.baseSpeed = (windowWidth < 768) ? rawSpeed * 0.3 : rawSpeed; 
         this.origVel = p5.Vector.random2D().mult(this.baseSpeed);
         
-        let offsetScale = (windowWidth < 768) ? 100 : 200;
+        let offsetScale = (windowWidth < 768) ? 80 : 200;
         let angle = random(TWO_PI);
         let r = random(offsetScale);
         this.offset = createVector(r * cos(angle), r * sin(angle));
@@ -153,7 +141,8 @@ class Particle {
     update() {
         this.pos.add(this.vel);
         if (!mouseIsPressed && this.vel.mag() > this.baseSpeed) {
-            this.vel.mult(0.96);
+            let friction = (windowWidth < 768) ? 0.92 : 0.96;
+            this.vel.mult(friction);
         }
     }
 
@@ -167,26 +156,29 @@ class Particle {
             let dist = arrive.mag();
             if (dist < 15) {
                 this.vel.mult(0.85);
-                this.vel.add(p5.Vector.random2D().mult(0.15));
+                this.vel.add(p5.Vector.random2D().mult(0.1));
             } else {
-                let speed = map(dist, 0, width, 40, 180);
+                let maxSpeed = (windowWidth < 768) ? 100 : 180;
+                let speed = map(dist, 0, width, 30, maxSpeed);
                 arrive.setMag(speed);
-                this.vel = p5.Vector.lerp(this.vel, arrive, 0.15);
+                this.vel = p5.Vector.lerp(this.vel, arrive, 0.1);
             }
             this.isPressed = true;
         } else {
             if (this.isPressed) {
-                this.vel = p5.Vector.random2D().mult(random(40, 90));
+                let popSpeed = (windowWidth < 768) ? random(20, 45) : random(40, 90);
+                this.vel = p5.Vector.random2D().mult(popSpeed);
                 this.isPressed = false;
             }
             let d = p5.Vector.dist(this.pos, targetVec);
             if (d < fleeRadius) {
                 let flee = p5.Vector.sub(this.pos, targetVec);
-                flee.setMag(2.5);
+                flee.setMag(1.5); 
                 this.vel.add(flee);
             } else {
-                this.vel.x = lerp(this.vel.x, this.origVel.x, 0.04);
-                this.vel.y = lerp(this.vel.y, this.origVel.y, 0.04);
+                let returnLerp = (windowWidth < 768) ? 0.02 : 0.04;
+                this.vel.x = lerp(this.vel.x, this.origVel.x, returnLerp);
+                this.vel.y = lerp(this.vel.y, this.origVel.y, returnLerp);
             }
         }
     }
