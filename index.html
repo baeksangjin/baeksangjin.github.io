@@ -9,35 +9,23 @@
     <style>
         body { margin: 0; padding: 0; background-color: #ffffff; overflow: hidden; cursor: crosshair; transition: background-color 0.8s ease; touch-action: none; }
         canvas { display: block; }
-        #ui-layer { position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%); z-index: 100; }
-        .mode-btn {
-            background: transparent; border: 1px solid #000000; padding: 14px 32px; border-radius: 0;
-            font-family: 'Montserrat', sans-serif; font-size: 10px; font-weight: 400; letter-spacing: 5px;
-            cursor: pointer; color: #000000; outline: none; text-transform: uppercase; 
-            display: inline-block; text-align: center; min-width: 140px;
-            -webkit-tap-highlight-color: transparent;
-        }
         body.dark-mode { background-color: #000000; }
-        body.dark-mode .mode-btn { border-color: #ffffff; color: #ffffff; }
     </style>
 </head>
 <body id="main-body">
-
-<div id="ui-layer">
-    <button class="mode-btn" id="kinetic-btn" onclick="handleModeSwitch()">VOID</button>
-</div>
 
 <script>
 let particles = [];
 let numParticles;
 let isDark = false;
 let bgColor = 255;
-const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-let interval = null;
 
 let lastInputTime = 0;
 let noiseX = 0, noiseY = 1000, noiseSpeed = 2000; 
-let currentCursor; // Tracks the actual effective cursor position
+let currentCursor; 
+
+let audioCtx;
+let lastTickSecond = -1;
 
 function setup() {
     createCanvas(windowWidth, windowHeight);
@@ -49,23 +37,82 @@ function setup() {
     }
 }
 
+function mousePressed() {
+    if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+    }
+    
+    isDark = !isDark;
+    const body = document.getElementById('main-body');
+    if (isDark) { 
+        body.classList.add('dark-mode'); 
+        bgColor = 0; 
+    } else { 
+        body.classList.remove('dark-mode'); 
+        bgColor = 255; 
+    }
+}
+
+function playStaccatoTick() {
+    if (!audioCtx || audioCtx.state !== 'running') return;
+    
+    let osc = audioCtx.createOscillator();
+    let gain = audioCtx.createGain();
+    let filter = audioCtx.createBiquadFilter();
+    
+    let baseFreq, decayTime, volume;
+
+    if (!isDark) { 
+        osc.type = 'triangle';
+        baseFreq = 5000;   
+        decayTime = 0.008; 
+        volume = 0.05;     
+        filter.type = 'highpass';
+        filter.frequency.setValueAtTime(4000, audioCtx.currentTime);
+    } else {
+        osc.type = 'sine';     
+        baseFreq = 1200; 
+        decayTime = 0.015; 
+        volume = 0.1;
+        filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(1200, audioCtx.currentTime);
+    }
+    
+    osc.frequency.setValueAtTime(baseFreq, audioCtx.currentTime); 
+    gain.gain.setValueAtTime(0, audioCtx.currentTime);
+    gain.gain.linearRampToValueAtTime(volume, audioCtx.currentTime + 0.001);
+    gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + decayTime);
+    
+    osc.connect(filter);
+    filter.connect(gain);
+    gain.connect(audioCtx.destination);
+    
+    osc.start();
+    osc.stop(audioCtx.currentTime + decayTime + 0.02);
+}
+
 function draw() {
     background(bgColor);
     
-    // Check for user activity
+    let s = second();
+    if (s !== lastTickSecond) {
+        playStaccatoTick();
+        lastTickSecond = s;
+    }
+
     if (mouseX !== pmouseX || mouseY !== pmouseY || mouseIsPressed) {
         lastInputTime = millis();
     }
 
     let targetX, targetY;
-    
-    // Idle threshold increased to 2 seconds (2000ms)
     if (millis() - lastInputTime > 2000) {
         let speedVariation = noise(noiseSpeed) * 0.015;
         noiseX += speedVariation;
         noiseY += speedVariation;
         noiseSpeed += 0.01;
-        
         targetX = noise(noiseX) * width;
         targetY = noise(noiseY) * height;
     } else {
@@ -73,8 +120,6 @@ function draw() {
         targetY = mouseY;
     }
 
-    // Seamless Transition: Always lerp currentCursor towards target (Auto or Manual)
-    // This ensures that when the user moves the mouse, it starts following from the last idle position.
     currentCursor.x = lerp(currentCursor.x, targetX, 0.15);
     currentCursor.y = lerp(currentCursor.y, targetY, 0.15);
 
@@ -156,27 +201,6 @@ class Particle {
         fill(isDark ? 255 : 0);
         ellipse(this.pos.x, this.pos.y, this.r);
     }
-}
-
-function handleModeSwitch() {
-    isDark = !isDark;
-    const body = document.getElementById('main-body');
-    const targetText = isDark ? "MANIFEST" : "VOID";
-    decodeText(targetText);
-    if (isDark) { body.classList.add('dark-mode'); bgColor = 0; }
-    else { body.classList.remove('dark-mode'); bgColor = 255; }
-}
-
-function decodeText(targetText) {
-    const btn = document.getElementById("kinetic-btn");
-    let iteration = 0;
-    let stopTimings = targetText.split("").map(() => Math.random() * 15 + 5);
-    clearInterval(interval);
-    interval = setInterval(() => {
-        btn.innerText = targetText.split("").map((l, i) => iteration > stopTimings[i] ? targetText[i] : letters[Math.floor(Math.random() * 26)]).join("");
-        if(iteration >= 20) { clearInterval(interval); btn.innerText = targetText; }
-        iteration += 1;
-    }, 40);
 }
 
 function windowResized() { resizeCanvas(windowWidth, windowHeight); }
