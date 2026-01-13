@@ -27,7 +27,7 @@ let lastTickSecond = -1;
 
 function setup() {
     createCanvas(windowWidth, windowHeight);
-    numParticles = (windowWidth < 768) ? 3000 : 11000;
+    numParticles = (windowWidth < 768) ? 3000 : 10000;
     currentCursor = createVector(width / 2, height / 2);
     for (let i = 0; i < numParticles; i++) {
         particles.push(new Particle());
