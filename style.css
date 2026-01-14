@@ -71,7 +71,7 @@ body {
 
 /* Logo & Buttons */
 .logo-btn {
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 400;
     cursor: pointer;
     pointer-events: auto;
@@ -82,9 +82,11 @@ body {
     user-select: none;
 }
 
-.logo-btn:hover {
-    background-color: #000;
-    color: #fff;
+@media (hover: hover) {
+    .logo-btn:hover {
+        background-color: #000;
+        color: #fff;
+    }
 }
 
 /* Navigation - Desktop Defaults */
@@ -144,27 +146,30 @@ body {
 #works-list a {
     text-decoration: none;
     color: #2c2c2c;
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 300;
     padding: 2px 4px;
     transition: all 0.2s;
     display: inline-block;
 }
 
-#works-list:hover a.active {
-    background-color: transparent;
-    color: #2c2c2c;
+@media (hover: hover) {
+    #works-list:hover a.active {
+        background-color: transparent;
+        color: #2c2c2c;
+    }
+
+    #works-list a:hover,
+    #works-list a.active {
+        background-color: #000;
+        color: #fff;
+    }
 }
 
-#works-list a:hover,
+/* Ensure Active state persists without hover logic conflict */
 #works-list a.active {
     background-color: #000;
     color: #fff;
-}
-
-#works-list a:hover {
-    background-color: #000 !important;
-    color: #fff !important;
 }
 
 /* Intro Content */
@@ -205,15 +210,22 @@ body {
 
     #hamburger-btn {
         display: flex;
-        /* Show Hamburger */
         flex-direction: column;
         justify-content: center;
         gap: 4px;
-        /* 4px spacing */
         cursor: pointer;
         margin-bottom: 20px;
-        margin-top: 4px;
-        /* Add 4px top margin */
+        /* Adjusted to keep relative flow if needed */
+        margin-top: -1px;
+        /* 4px - 5px padding compensation */
+        padding: 5px;
+        /* Expand click area by 5px */
+        width: 30px;
+        /* 20px content + 10px padding */
+        height: 24px;
+        /* 14px content + 10px padding */
+        margin-left: -5px;
+        /* Compensate left padding */
     }
 
     #hamburger-btn span {
@@ -260,7 +272,7 @@ body {
 
     #mobile-close-btn {
         display: inline-block;
-        font-size: 14px;
+        font-size: 15px;
         font-weight: 400;
         letter-spacing: 2px;
         cursor: pointer;
@@ -273,9 +285,11 @@ body {
         /* Remove Box */
     }
 
-    #mobile-close-btn:hover {
-        background-color: #000;
-        color: #fff;
+    @media (hover: hover) {
+        #mobile-close-btn:hover {
+            background-color: #000;
+            color: #fff;
+        }
     }
 
     #works-list {
@@ -290,7 +304,7 @@ body {
     }
 
     #works-list a {
-        font-size: 14px;
+        font-size: 15px;
         /* 14px requested */
     }
 }
