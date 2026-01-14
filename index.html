@@ -1,172 +1,77 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>BAEK Labs | Kinetic Organic Zone</title>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@100;300;400&display=swap" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
-    <style>
-        body { margin: 0; padding: 0; background-color: #ffffff; overflow: hidden; cursor: crosshair; transition: background-color 0.8s ease; touch-action: none; }
-        canvas { display: block; }
-        body.dark-mode { background-color: #000000; }
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BAEK</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css?v=18">
 </head>
-<body id="main-body">
 
-<script>
-let particles = [];
-let numParticles;
-let isDark = false;
-let bgColor = 255;
-let lastInputTime = 0;
-let noiseX = 0, noiseY = 1000, noiseSpeed = 2000; 
-let currentCursor; 
-let audioCtx;
-let lastTickSecond = -1;
+<body>
 
-function setup() {
-    createCanvas(windowWidth, windowHeight);
-    numParticles = (windowWidth < 768) ? 3000 : 10000;
-    currentCursor = createVector(width / 2, height / 2);
-    for (let i = 0; i < numParticles; i++) {
-        particles.push(new Particle());
-    }
-}
+    <div id="app-slider">
 
-function mousePressed() {
-    if (!audioCtx) {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    }
-    if (audioCtx.state === 'suspended') {
-        audioCtx.resume();
-    }
-    isDark = !isDark;
-    const body = document.getElementById('main-body');
-    if (isDark) { 
-        body.classList.add('dark-mode'); 
-        bgColor = 0; 
-    } else { 
-        body.classList.remove('dark-mode'); 
-        bgColor = 255; 
-    }
-}
+        <!-- Screen 1: Main Work Viewer -->
+        <section id="main-screen">
 
-function playStaccatoTick() {
-    if (!audioCtx || audioCtx.state !== 'running') return;
-    let osc = audioCtx.createOscillator();
-    let gain = audioCtx.createGain();
-    let filter = audioCtx.createBiquadFilter();
-    let baseFreq, decayTime, volume;
+            <header class="screen-header">
 
-    if (!isDark) { 
-        osc.type = 'triangle'; baseFreq = 5000; decayTime = 0.008; volume = 0.05;     
-        filter.type = 'highpass'; filter.frequency.setValueAtTime(4000, audioCtx.currentTime);
-    } else {
-        osc.type = 'sine'; baseFreq = 1200; decayTime = 0.015; volume = 0.1;
-        filter.type = 'bandpass'; filter.frequency.setValueAtTime(1200, audioCtx.currentTime);
-    }
-    
-    osc.frequency.setValueAtTime(baseFreq, audioCtx.currentTime); 
-    gain.gain.setValueAtTime(0, audioCtx.currentTime);
-    gain.gain.linearRampToValueAtTime(volume, audioCtx.currentTime + 0.001);
-    gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + decayTime);
-    osc.connect(filter); filter.connect(gain); gain.connect(audioCtx.destination);
-    osc.start(); osc.stop(audioCtx.currentTime + decayTime + 0.02);
-}
+                <!-- Left: Menu Area -->
+                <div class="header-left">
+                    <!-- Hamburger (Mobile Only) -->
+                    <div id="hamburger-btn">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </div>
 
-function draw() {
-    background(bgColor);
-    let s = second();
-    if (s !== lastTickSecond) {
-        playStaccatoTick();
-        lastTickSecond = s;
-    }
-    if (mouseX !== pmouseX || mouseY !== pmouseY || mouseIsPressed) {
-        lastInputTime = millis();
-    }
-    let targetX, targetY;
-    if (millis() - lastInputTime > 2000) {
-        let speedVariation = noise(noiseSpeed) * 0.015;
-        noiseX += speedVariation; noiseY += speedVariation; noiseSpeed += 0.01;
-        targetX = noise(noiseX) * width; targetY = noise(noiseY) * height;
-    } else {
-        targetX = mouseX; targetY = mouseY;
-    }
-    currentCursor.x = lerp(currentCursor.x, targetX, 0.15);
-    currentCursor.y = lerp(currentCursor.y, targetY, 0.15);
-    for (let p of particles) {
-        p.update(); p.bounce(); p.interact(currentCursor.x, currentCursor.y); p.show();
-    }
-}
+                    <!-- Navigation -->
+                    <nav id="main-nav">
+                        <!-- Mobile Close Button inside Nav -->
+                        <div id="mobile-close-btn">C L O S E</div>
+                        <ul id="works-list"></ul>
+                    </nav>
+                </div>
 
-class Particle {
-    constructor() {
-        this.pos = createVector(random(width), random(height));
-        this.vel = p5.Vector.random2D().mult(random(5, 60));
-        this.baseSpeed = random() > 0.9 ? random(1.2, 2.1) : random(0.15, 0.9);
-        this.origVel = p5.Vector.random2D().mult(this.baseSpeed);
-        let offsetScale = (windowWidth < 768) ? 100 : 200;
-        let angle = random(TWO_PI);
-        let r = random(offsetScale);
-        this.offset = createVector(r * cos(angle), r * sin(angle));
-        let rChance = random(1);
-        if (rChance > 0.993) this.r = random(10.8, 16.2);
-        else if (rChance > 0.88) this.r = random(5, 9);
-        else this.r = random(1.6, 3.7);
-        this.isPressed = false;
-    }
+                <!-- Right: Logo -->
+                <div class="logo-btn" id="go-intro">B A E K</div>
+            </header>
 
-    update() {
-        this.pos.add(this.vel);
-        if (!mouseIsPressed && this.vel.mag() > this.baseSpeed) {
-            this.vel.mult(0.96);
-        }
-    }
+            <iframe id="art-viewer" src="" title="Art Viewer"></iframe>
 
-    interact(tx, ty) {
-        let targetVec = createVector(tx, ty);
-        let fleeRadius = (windowWidth < 768) ? 75 : 112;
-        if (mouseIsPressed) {
-            let target = p5.Vector.add(targetVec, this.offset);
-            let arrive = p5.Vector.sub(target, this.pos);
-            let dist = arrive.mag();
-            if (dist < 15) {
-                this.vel.mult(0.85); this.vel.add(p5.Vector.random2D().mult(0.15));
-            } else {
-                let speed = map(dist, 0, width, 40, 180);
-                arrive.setMag(speed); this.vel = p5.Vector.lerp(this.vel, arrive, 0.15);
-            }
-            this.isPressed = true;
-        } else {
-            if (this.isPressed) {
-                this.vel = p5.Vector.random2D().mult(random(40, 90));
-                this.isPressed = false;
-            }
-            let d = p5.Vector.dist(this.pos, targetVec);
-            if (d < fleeRadius) {
-                let flee = p5.Vector.sub(this.pos, targetVec);
-                flee.setMag(2.5); this.vel.add(flee);
-            } else {
-                this.vel.x = lerp(this.vel.x, this.origVel.x, 0.04);
-                this.vel.y = lerp(this.vel.y, this.origVel.y, 0.04);
-            }
-        }
-    }
+        </section>
 
-    bounce() {
-        if (this.pos.x <= 0 || this.pos.x >= width) { this.vel.x *= -1; this.origVel.x *= -1; this.pos.x = constrain(this.pos.x, 0, width); }
-        if (this.pos.y <= 0 || this.pos.y >= height) { this.vel.y *= -1; this.origVel.y *= -1; this.pos.y = constrain(this.pos.y, 0, height); }
-    }
+        <!-- Screen 2: Introduction -->
+        <section id="intro-screen">
 
-    show() {
-        noStroke();
-        fill(isDark ? 255 : 0);
-        ellipse(this.pos.x, this.pos.y, this.r);
-    }
-}
+            <header class="screen-header">
+                <!-- Left is empty -->
+                <div class="spacer"></div>
+                <!-- Right is toggle to go back -->
+                <div class="logo-btn" id="go-back">B A C K</div>
+            </header>
 
-function windowResized() { resizeCanvas(windowWidth, windowHeight); }
-</script>
+            <div class="intro-content">
+                <h1>BAEK</h1>
+                <p>
+                    Minimalist Creative Coder.<br>
+                    Seoul / Tokyo based.<br><br>
+                    Exploring the boundary between<br>
+                    code and emptiness.
+                </p>
+                <br>
+                <p class="contact">contact@baek.site</p>
+            </div>
+
+        </section>
+
+    </div>
+
+    <script src="script.js"></script>
 </body>
+
 </html>
