@@ -1,1 +1,0 @@
-# baeksangjin.github.io
