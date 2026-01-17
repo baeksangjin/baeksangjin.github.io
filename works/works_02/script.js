@@ -29,7 +29,8 @@ function setup() {
     // 1. Render Setup
     let cnv = createCanvas(windowWidth, windowHeight);
     cnv.parent(document.querySelector('main'));
-    pixelDensity(1); // Critical for Mobile Safari performance & coordinate matching
+    // Retina Support: Cap key density at 2 for performance/quality balance
+    pixelDensity(min(window.devicePixelRatio, 2));
 
     // Set Decay Threshold based on device
     decayThreshold = (windowWidth < 768) ? 25 : 50;
