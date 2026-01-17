@@ -12,6 +12,7 @@ let engine;
 let world;
 let boxes = [];
 let boundaries = [];
+let decayThreshold = 50; // Default
 
 // Physics Constants
 const WALL_THICKNESS = 100;
@@ -28,6 +29,9 @@ function setup() {
     // 1. Render Setup
     let cnv = createCanvas(windowWidth, windowHeight);
     cnv.parent(document.querySelector('main'));
+
+    // Set Decay Threshold based on device
+    decayThreshold = (windowWidth < 768) ? 25 : 50;
 
     // 2. UI Setup (Sound Button)
     setupUI();
@@ -257,8 +261,8 @@ function splitBox(body, depth = 0, silent = false) {
     let w = body.width;
     let h = body.height;
 
-    // Decay Threshold: Vanish if < 50px
-    if (w < 50 || h < 50) return;
+    // Decay Threshold: Vanish if smaller than threshold
+    if (w < decayThreshold || h < decayThreshold) return;
 
     let splitVertical = w > h;
     let gap = 5;
@@ -310,6 +314,7 @@ function isPointInBody(x, y, body) {
 
 function windowResized() {
     resizeCanvas(windowWidth, windowHeight);
+    decayThreshold = (windowWidth < 768) ? 25 : 50;
     World.remove(world, boundaries);
     createBoundaries();
 }

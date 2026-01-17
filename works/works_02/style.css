@@ -30,9 +30,11 @@ canvas {
     transition: all 0.2s;
 }
 
-#sound-btn:hover {
-    background: #000;
-    color: #fff;
+@media (hover: hover) {
+    #sound-btn:hover {
+        background: #000;
+        color: #fff;
+    }
 }
 
 @media (max-width: 768px) {
