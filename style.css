@@ -47,6 +47,8 @@ body {
     border: none;
     z-index: 0;
     background-color: #fff;
+    opacity: 1;
+    /* Managed by JS */
 }
 
 /* Headers */
@@ -320,5 +322,39 @@ body {
         opacity: 1;
         transform: translateY(0);
         filter: blur(0);
+    }
+}
+
+/* --- Global Loader --- */
+#global-loader {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    height: 1px;
+    background-color: #000;
+    /* Black Line Background */
+    z-index: 1000;
+    display: none;
+    /* Toggle this in JS */
+    pointer-events: none;
+
+    /* Desktop Margins */
+    left: 40px;
+    right: 40px;
+}
+
+#loader-progress {
+    width: 0%;
+    height: 100%;
+    background-color: #D72626;
+    /* Red Fill */
+    transition: width 0.3s ease-out;
+}
+
+/* Mobile Adjustments for Loader */
+@media (max-width: 768px) {
+    #global-loader {
+        left: 20px;
+        right: 20px;
     }
 }

@@ -83,6 +83,11 @@ async function initPortfolio() {
             // Interaction: Open Work
             link.addEventListener('click', (e) => {
                 e.preventDefault();
+
+                // Hide Content First
+                viewer.style.opacity = '0';
+
+                showLoader(); // Trigger Loading Animation
                 viewer.src = filename;
                 document.querySelectorAll('#works-list a').forEach(a => a.classList.remove('active'));
                 link.classList.add('active');
@@ -122,6 +127,61 @@ async function initPortfolio() {
     }
 
     // Fetches complete
+}
+
+// --- Global Loader Logic ---
+let loaderTimeout;
+let loadStartTime = 0;
+
+function showLoader() {
+    const loader = document.getElementById('global-loader');
+    const progress = document.getElementById('loader-progress');
+    if (!loader || !progress) return;
+
+    loadStartTime = Date.now(); // Record Start
+
+    // Reset
+    clearTimeout(loaderTimeout);
+    loader.style.display = 'block'; // Instant "Tick" On
+    progress.style.width = '0%';
+    progress.style.transition = 'width 0s';
+
+    // Fake Progress (Test 5s)
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            progress.style.width = '10%';
+            progress.style.transition = 'width 0.3s ease-out';
+
+            loaderTimeout = setTimeout(() => {
+                // Normal Speed (2s to 85%) - Responsive feel
+                progress.style.transition = 'width 2s cubic-bezier(0.22, 1, 0.36, 1)';
+                progress.style.width = '85%';
+            }, 100);
+        });
+    });
+}
+
+function hideLoader() {
+    const loader = document.getElementById('global-loader');
+    const progress = document.getElementById('loader-progress');
+    if (!loader || !progress) return;
+
+    // Complete Progress
+    progress.style.transition = 'width 0.1s ease-out';
+    progress.style.width = '100%';
+
+    // Instant "Tick" Off after minimal delay to register 100%
+    setTimeout(() => {
+        loader.style.display = 'none';
+        progress.style.width = '0%';
+
+        // REVEAL CONTENT: Sequential appear after loader is gone (0.2s delay)
+        setTimeout(() => {
+            const viewer = document.getElementById('art-viewer');
+            if (viewer) viewer.style.opacity = '1';
+        }, 200);
+
+    }, 100);
 }
 
 function applyMagneticEffect(element) {
@@ -178,9 +238,19 @@ function initMobileMenu() {
         nav.classList.remove('open');
     });
 
-    // Linked Scrolling: Iframe -> Nav
+    // Linked Scrolling & Loader Trigger via Iframe
     const viewer = document.getElementById('art-viewer');
+
+    // Hide Loader when Iframe loads (Real Event)
     viewer.addEventListener('load', () => {
+        const elapsed = Date.now() - loadStartTime;
+        const minLoadTime = 300; // Minimum 0.3s visible
+        const remaining = Math.max(0, minLoadTime - elapsed);
+
+        setTimeout(() => {
+            hideLoader();
+        }, remaining);
+
         try {
             const iframeDoc = viewer.contentDocument || viewer.contentWindow.document;
             const nav = document.getElementById('main-nav');
@@ -188,25 +258,14 @@ function initMobileMenu() {
             // Listen for wheel events inside iframe
             iframeDoc.addEventListener('wheel', (e) => {
                 const scrollable = iframeDoc.scrollingElement || iframeDoc.body;
-
-                // Check edge states (allowing 2px buffer)
                 const isBottom = (scrollable.scrollHeight - scrollable.scrollTop) <= (scrollable.clientHeight + 2);
                 const isTop = scrollable.scrollTop <= 0;
-
-                // Condition 1: At Bottom AND Scrolling Down
-                // Condition 2: At Top AND Scrolling Up
                 if ((isBottom && e.deltaY > 0) || (isTop && e.deltaY < 0)) {
-                    // Forward scroll to our nav
                     nav.scrollTop += e.deltaY;
-
-                    // Prevent default to stop iframe "bounce" and prioritize nav scroll
                     e.preventDefault();
                 }
             }, { passive: false });
-        } catch (err) {
-            // Cross-origin restriction might block this if not same domain
-            console.log("Linked scrolling unavailable (Cross-Origin)");
-        }
+        } catch (err) { }
     });
 }
 
