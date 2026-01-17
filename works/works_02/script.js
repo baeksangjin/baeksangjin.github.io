@@ -29,6 +29,7 @@ function setup() {
     // 1. Render Setup
     let cnv = createCanvas(windowWidth, windowHeight);
     cnv.parent(document.querySelector('main'));
+    pixelDensity(1); // Critical for Mobile Safari performance & coordinate matching
 
     // Set Decay Threshold based on device
     decayThreshold = (windowWidth < 768) ? 25 : 50;
@@ -185,28 +186,52 @@ function draw() {
 }
 
 // --- Interaction ---
+// --- Interaction ---
 function mousePressed() {
     // Only handle canvas clicks here
     // Button clicks are handled by btn.mousePressed
 
-    // Prevent double trigger if clicking UI
-    if (event.target.id === 'sound-btn') return;
+    // UI Click Check (Safety)
+    if (event && event.target && event.target.id === 'sound-btn') return;
 
+    handleInput(mouseX, mouseY);
+}
+
+function touchStarted() {
+    // Safari Audio Resume
+    if (soundEnabled && getAudioContext().state !== 'running') {
+        userStartAudio();
+    }
+
+    // UI Touch Check
+    if (event && event.target && event.target.id === 'sound-btn') return true;
+
+    // Multi-touch Support
+    for (let i = 0; i < touches.length; i++) {
+        handleInput(touches[i].x, touches[i].y);
+    }
+
+    // Prevent default (Scroll/Zoom)
+    return false;
+}
+
+function handleInput(x, y) {
     if (soundEnabled) userStartAudio();
 
     for (let i = boxes.length - 1; i >= 0; i--) {
         let b = boxes[i];
-        if (isPointInBody(mouseX, mouseY, b)) {
-            // Red Block "Bomb"
+        if (isPointInBody(x, y, b)) {
+            // Chaos (Red)
             if (b.color === '#D72626') {
                 playSplitSound(true);
-                splitBox(b, 0, true); // Silent split (sound played above)
+                splitBox(b, 0, true);
                 triggerRandomSplits(9);
             } else {
+                // Normal
                 playSplitSound(false);
                 splitBox(b, 0, true);
             }
-            break;
+            break; // Handle one block per input point
         }
     }
 }
