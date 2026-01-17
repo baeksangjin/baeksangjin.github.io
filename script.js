@@ -46,6 +46,12 @@ async function initPortfolio() {
     const goIntro = document.getElementById('go-intro');
     const goBack = document.getElementById('go-back');
 
+    // --- Initial Load Animation ---
+    if (viewer) {
+        viewer.style.opacity = '0'; // Hide initially
+        showLoader(); // Start Loader
+    }
+
     // Apply Magnetic to Static Buttons
     if (window.matchMedia("(hover: hover)").matches) {
         applyMagneticEffect(goIntro);
