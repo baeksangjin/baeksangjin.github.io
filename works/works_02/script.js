@@ -336,7 +336,7 @@ function drawBox(body) {
     translate(body.position.x, body.position.y);
     rotate(body.angle);
     rectMode(CENTER);
-    stroke(0);
+    stroke(60); // Optical thinning (Dark Gray instead of Black)
     strokeWeight(1);
     fill(body.color);
     rect(0, 0, body.width, body.height);
