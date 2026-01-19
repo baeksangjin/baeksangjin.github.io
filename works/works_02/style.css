@@ -12,6 +12,8 @@ html {
 
 canvas {
     display: block;
+    touch-action: none;
+    /* Disable browser gestures */
 }
 
 #sound-btn {

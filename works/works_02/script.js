@@ -38,6 +38,32 @@ function setup() {
     // 2. UI Setup (Sound Button)
     setupUI();
 
+    // --- Vanilla Touch Handler for Robustness ---
+    // Bypass p5.js touchStarted which can be flaky on some mobile browsers
+    cnv.elt.addEventListener('touchstart', (e) => {
+        // 1. Resume Audio
+        if (soundEnabled && getAudioContext().state !== 'running') {
+            userStartAudio();
+        }
+
+        // 2. UI Protection
+        if (e.target.id === 'sound-btn') return;
+
+        // 3. Prevent Browser Defaults (Scroll/Zoom)
+        e.preventDefault();
+
+        // 4. Handle Touches
+        // Use changedTouches to process only new touches
+        for (let i = 0; i < e.changedTouches.length; i++) {
+            const t = e.changedTouches[i];
+            // Manual coordinate mapping not usually needed if canvas fills window,
+            // but strictly use clientX/Y relative to canvas if needed. 
+            // Since canvas is full screen fixed:
+            handleInput(t.clientX, t.clientY);
+        }
+        return false;
+    }, { passive: false }); // Important: passive: false allows preventDefault
+
     // 3. Physics Setup
     engine = Engine.create();
     world = engine.world;
@@ -197,40 +223,7 @@ function mousePressed(e) {
     handleInput(mouseX, mouseY);
 }
 
-function touchStarted() {
-    // 1. Resume Audio Context (Safari Requirement)
-    if (getAudioContext().state !== 'running') {
-        userStartAudio();
-    }
-
-    // 2. UI Protection (Sound Button)
-    // p5.js wraps events; we check the target of the native event
-    const e = window.event || arguments[0];
-    if (e && e.target && e.target.id === 'sound-btn') {
-        return true; // Use default behavior (click)
-    }
-
-    // 3. Interaction Logic
-    let processed = false;
-
-    if (touches.length > 0) {
-        // Multi-touch
-        for (let i = 0; i < touches.length; i++) {
-            handleInput(touches[i].x, touches[i].y);
-            processed = true;
-        }
-    } else {
-        // Fallback for some Android/older iOS wrappers
-        handleInput(mouseX, mouseY);
-        processed = true;
-    }
-
-    // 4. Prevent Default only if we processed logic to avoid scrolling
-    // returning false in p5.js prevents default browser behavior
-    if (processed) {
-        return false;
-    }
-}
+// function touchStarted() removed in favor of vanilla listener in setup()
 
 function handleInput(x, y) {
     if (soundEnabled) userStartAudio();
