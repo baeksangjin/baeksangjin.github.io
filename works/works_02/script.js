@@ -337,7 +337,7 @@ function drawBox(body) {
     rotate(body.angle);
     rectMode(CENTER);
     stroke(0);
-    strokeWeight(0.5);
+    strokeWeight(1);
     fill(body.color);
     rect(0, 0, body.width, body.height);
     pop();
