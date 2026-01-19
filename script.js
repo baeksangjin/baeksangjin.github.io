@@ -65,23 +65,35 @@ async function initPortfolio() {
 
     let foundCount = 0; // For gap-tolerant stagger logic
 
-    // Scan for files from 40 down to 1
-    for (let i = 40; i >= 1; i--) {
-        const idxStr = i.toString().padStart(2, '0');
+    // --- Optimized Parallel Loading ---
+    // 1. Fire parallel checks for all 40 slots
+    const checks = Array.from({ length: 40 }, (_, i) => {
+        const index = 40 - i; // 40 down to 1
+        const idxStr = index.toString().padStart(2, '0');
         const filename = `works/works_${idxStr}/index.html?v=${new Date().getTime()}`;
-        try {
-            const response = await fetch(filename, { method: 'HEAD' });
-            if (!response.ok) continue;
 
-            const textResponse = await fetch(filename);
+        return fetch(filename, { method: 'HEAD' })
+            .then(res => res.ok ? { index, filename, exists: true } : { index, exists: false })
+            .catch(() => ({ index, exists: false }));
+    });
+
+    const results = await Promise.all(checks);
+
+    // 2. Filter valid works (Sort by index descending just in case Promise.all order varies, though index is stored)
+    const validWorks = results.filter(r => r.exists).sort((a, b) => b.index - a.index);
+
+    // 3. Process valid works
+    for (const work of validWorks) {
+        try {
+            const textResponse = await fetch(work.filename);
             const text = await textResponse.text();
 
             const titleMatch = text.match(/<title>(.*?)<\/title>/i);
-            const title = titleMatch ? titleMatch[1] : `Work ${idxStr}`;
+            const title = titleMatch ? titleMatch[1] : `Work ${work.index.toString().padStart(2, '0')}`;
 
             const li = document.createElement('li');
             const link = document.createElement('a');
-            link.textContent = title;
+
             // Initial state empty for scrambling
             link.textContent = "";
             link.href = "#";
@@ -94,7 +106,7 @@ async function initPortfolio() {
                 viewer.style.opacity = '0';
 
                 showLoader(); // Trigger Loading Animation
-                viewer.src = filename;
+                viewer.src = work.filename;
                 document.querySelectorAll('#works-list a').forEach(a => a.classList.remove('active'));
                 link.classList.add('active');
                 document.getElementById('main-nav').classList.remove('open');
@@ -105,14 +117,13 @@ async function initPortfolio() {
                 applyMagneticEffect(link);
             }
 
-            // Scramble Entrance
-            // Use foundCount to ensure first VISIBLE item starts at 0ms delay
+            // Scramble Entrance - delay based on foundCount
             const delay = foundCount * 50;
             scrambleText(link, title, delay);
 
             // Sync Logo with First Item
             if (foundCount === 0) {
-                scrambleText(goIntro, "B A E K", 0, 0.5); // Ensure slow speed here too if re-triggered
+                scrambleText(goIntro, "B A E K", 0, 0.5);
             }
 
             // Animation Delay (Stagger)
@@ -121,17 +132,16 @@ async function initPortfolio() {
             li.appendChild(link);
             listContainer.appendChild(li);
 
-            foundCount++;
-
+            // Auto-load Title Logic
             if (!firstLoaded) {
-                viewer.src = filename;
+                viewer.src = work.filename;
                 link.classList.add('active');
                 firstLoaded = true;
             }
 
-        } catch (e) { continue; }
+            foundCount++;
+        } catch (e) { console.error("Error loading work details", e); }
     }
-
     // Fetches complete
 }
 
