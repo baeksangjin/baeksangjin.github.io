@@ -188,32 +188,48 @@ function draw() {
 
 // --- Interaction ---
 // --- Interaction ---
-function mousePressed() {
-    // Only handle canvas clicks here
-    // Button clicks are handled by btn.mousePressed
-
-    // UI Click Check (Safety)
-    if (event && event.target && event.target.id === 'sound-btn') return;
+// --- Interaction ---
+function mousePressed(e) {
+    // UI Click Check (Safety) - Accept explicit event 'e' and check window.event fallback
+    const evt = e || window.event;
+    if (evt && evt.target && evt.target.id === 'sound-btn') return;
 
     handleInput(mouseX, mouseY);
 }
 
 function touchStarted() {
-    // Safari Audio Resume
-    if (soundEnabled && getAudioContext().state !== 'running') {
+    // 1. Resume Audio Context (Safari Requirement)
+    if (getAudioContext().state !== 'running') {
         userStartAudio();
     }
 
-    // UI Touch Check
-    if (event && event.target && event.target.id === 'sound-btn') return true;
-
-    // Multi-touch Support
-    for (let i = 0; i < touches.length; i++) {
-        handleInput(touches[i].x, touches[i].y);
+    // 2. UI Protection (Sound Button)
+    // p5.js wraps events; we check the target of the native event
+    const e = window.event || arguments[0];
+    if (e && e.target && e.target.id === 'sound-btn') {
+        return true; // Use default behavior (click)
     }
 
-    // Prevent default (Scroll/Zoom)
-    return false;
+    // 3. Interaction Logic
+    let processed = false;
+
+    if (touches.length > 0) {
+        // Multi-touch
+        for (let i = 0; i < touches.length; i++) {
+            handleInput(touches[i].x, touches[i].y);
+            processed = true;
+        }
+    } else {
+        // Fallback for some Android/older iOS wrappers
+        handleInput(mouseX, mouseY);
+        processed = true;
+    }
+
+    // 4. Prevent Default only if we processed logic to avoid scrolling
+    // returning false in p5.js prevents default browser behavior
+    if (processed) {
+        return false;
+    }
 }
 
 function handleInput(x, y) {
