@@ -23,9 +23,11 @@ let noiseEnv;
 let bassOsc;
 let bassEnv;
 let soundEnabled = false; // Default: Sound OFF
+let isGlobalMute = false; // Controlled by Parent
 
 // --- Setup ---
 function setup() {
+    window.audioCtx = getAudioContext();
     // 1. Render Setup
     let cnv = createCanvas(windowWidth, windowHeight);
     cnv.parent(document.querySelector('main'));
@@ -42,7 +44,7 @@ function setup() {
     // Bypass p5.js touchStarted which can be flaky on some mobile browsers
     cnv.elt.addEventListener('touchstart', (e) => {
         // 1. Resume Audio
-        if (soundEnabled && getAudioContext().state !== 'running') {
+        if (soundEnabled && !isGlobalMute && getAudioContext().state !== 'running') {
             userStartAudio();
         }
 
@@ -107,7 +109,7 @@ function setupUI() {
 
         if (soundEnabled) {
             // Wake up Audio Context
-            userStartAudio();
+            if (!isGlobalMute) userStartAudio();
 
             // Ensure Oscillators are running (browsers may stop them)
             if (noiseOsc) try { noiseOsc.start(); } catch (e) { }
@@ -192,7 +194,7 @@ function resetSystem() {
 }
 
 function draw() {
-    background(255);
+    background('#FCFCFC');
 
     // Render & Update
     for (let i = boxes.length - 1; i >= 0; i--) {
@@ -226,13 +228,13 @@ function mousePressed(e) {
 // function touchStarted() removed in favor of vanilla listener in setup()
 
 function handleInput(x, y) {
-    if (soundEnabled) userStartAudio();
+    if (soundEnabled && !isGlobalMute) userStartAudio();
 
     for (let i = boxes.length - 1; i >= 0; i--) {
         let b = boxes[i];
         if (isPointInBody(x, y, b)) {
             // Chaos (Red)
-            if (b.color === '#D72626') {
+            if (b.color === '#EB0013') {
                 playSplitSound(true);
                 splitBox(b, 0, true);
                 triggerRandomSplits(9);
@@ -274,7 +276,7 @@ function createBox(x, y, w, h, forceColor = null) {
 
     body.width = w;
     body.height = h;
-    body.color = isRed ? '#D72626' : '#FFFFFF';
+    body.color = isRed ? '#EB0013' : '#FCFCFC';
 
     // Slight Jitter
     Matter.Body.setVelocity(body, { x: random(-2, 2), y: random(-2, 2) });
@@ -288,7 +290,7 @@ function createBox(x, y, w, h, forceColor = null) {
 function splitBox(body, depth = 0, silent = false) {
     if (depth > 2) return;
 
-    if (!silent) playSplitSound(body.color === '#D72626');
+    if (!silent) playSplitSound(body.color === '#EB0013');
 
     World.remove(world, body);
     boxes = boxes.filter(b => b !== body);
@@ -353,3 +355,30 @@ function windowResized() {
     World.remove(world, boundaries);
     createBoundaries();
 }
+
+// ... (Existing code) ...
+
+
+window.addEventListener('message', function (event) {
+    if (event.data === 'MUTE') {
+        isGlobalMute = true; // Block local resume
+        try {
+            if (typeof getAudioContext === 'function') {
+                var ctx = getAudioContext();
+                if (ctx.state === 'running') ctx.suspend();
+            } else if (window.audioCtx) {
+                if (window.audioCtx.state === 'running') window.audioCtx.suspend();
+            }
+        } catch (e) { console.error(e); }
+    } else if (event.data === 'UNMUTE') {
+        isGlobalMute = false; // Allow local resume
+        try {
+            if (typeof getAudioContext === 'function') {
+                var ctx = getAudioContext();
+                if (ctx.state === 'suspended' && soundEnabled) ctx.resume();
+            } else if (window.audioCtx) {
+                if (window.audioCtx.state === 'suspended' && soundEnabled) window.audioCtx.resume();
+            }
+        } catch (e) { console.error(e); }
+    }
+});

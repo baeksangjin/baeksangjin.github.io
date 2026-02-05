@@ -3,11 +3,11 @@ document.addEventListener('DOMContentLoaded', () => {
     initSlider();
     initMobileMenu();
     initAudio();
-    // Wait slightly for DOM populating, but initPortfolio is async. 
-    // We'll call magnetic init inside initPortfolio or via mutation observer.
-    // simpler: handled via delegated events or attached in initPortfolio loop.
-    // Let's stick to attaching logic after elements exist.
+    // initLiveTimer(); // Removed per user request
 });
+
+// --- Live Timer Logic ---
+/* Live Timer Logic Removed */
 
 // --- Audio Logic ---
 let globalAudioCtx;
@@ -38,6 +38,28 @@ function playClickSound() {
 
 // --- Portfolio Logic ---
 async function initPortfolio() {
+    // VISUAL DEBUGGER
+    const debugDiv = document.createElement('div');
+    debugDiv.id = 'debug-log';
+    Object.assign(debugDiv.style, {
+        position: 'fixed', top: '0', left: '0', zIndex: '9999',
+        background: 'rgba(0,0,0,0.85)', color: '#0f0', padding: '10px',
+        fontFamily: 'monospace', fontSize: '12px', maxWidth: '300px',
+        maxHeight: '50vh', overflowY: 'auto', pointerEvents: 'none'
+    });
+    // Uncomment to see debug log on screen
+    // Uncomment to see debug log on screen
+    // document.body.appendChild(debugDiv);
+
+    function log(msg) {
+        const line = document.createElement('div');
+        line.textContent = `> ${msg}`;
+        debugDiv.appendChild(line);
+        console.log(msg);
+    }
+
+    log("Init Portfolio...");
+
     const listContainer = document.getElementById('works-list');
     const viewer = document.getElementById('art-viewer');
     let firstLoaded = false;
@@ -58,38 +80,51 @@ async function initPortfolio() {
         applyMagneticEffect(goBack);
     }
 
-    // Scramble Static Logo (Start immediately with menu loop)
-    // 2x slower than others (speed 0.5)
+    // Scramble Static Logo
     scrambleText(goIntro, "B A E K", 0, 0.5);
-    // ---------------------------------------------
 
-    let foundCount = 0; // For gap-tolerant stagger logic
+    let foundCount = 0;
 
     // --- Optimized Parallel Loading ---
-    // 1. Fire parallel checks for all 40 slots
+    log("Scanning 40 slots...");
     const checks = Array.from({ length: 40 }, (_, i) => {
-        const index = 40 - i; // 40 down to 1
+        const index = 40 - i;
         const idxStr = index.toString().padStart(2, '0');
         const filename = `works/works_${idxStr}/index.html?v=${new Date().getTime()}`;
 
-        return fetch(filename, { method: 'HEAD' })
+        return fetch(filename, { method: 'GET' })
             .then(res => res.ok ? { index, filename, exists: true } : { index, exists: false })
-            .catch(() => ({ index, exists: false }));
+            .catch((e) => {
+                // log(`Error checking ${index}: ${e}`);
+                return { index, exists: false };
+            });
     });
 
     const results = await Promise.all(checks);
+    log("Scan complete.");
 
-    // 2. Filter valid works (Sort by index descending just in case Promise.all order varies, though index is stored)
+    // DEBUG: Force works_03
+    const hasWork3 = results.some(r => r.index === 3 && r.exists);
+    if (!hasWork3) {
+        log("Forcing Works 03 inject...");
+        results.push({ index: 3, filename: 'works/works_03/index.html', exists: true });
+    } else {
+        log("Works 03 was found normally.");
+    }
+
     const validWorks = results.filter(r => r.exists).sort((a, b) => b.index - a.index);
+    log(`Valid works found: ${validWorks.length}`);
 
     // 3. Process valid works
     for (const work of validWorks) {
         try {
+            log(`Loading meta for #${work.index}...`);
             const textResponse = await fetch(work.filename);
             const text = await textResponse.text();
 
             const titleMatch = text.match(/<title>(.*?)<\/title>/i);
             const title = titleMatch ? titleMatch[1] : `Work ${work.index.toString().padStart(2, '0')}`;
+            log(`  -> Title: ${title}`);
 
             const li = document.createElement('li');
             const link = document.createElement('a');
@@ -101,48 +136,50 @@ async function initPortfolio() {
             // Interaction: Open Work
             link.addEventListener('click', (e) => {
                 e.preventDefault();
-
-                // Hide Content First
                 viewer.style.opacity = '0';
-
-                showLoader(); // Trigger Loading Animation
+                showLoader();
                 viewer.src = work.filename;
                 document.querySelectorAll('#works-list a').forEach(a => a.classList.remove('active'));
                 link.classList.add('active');
                 document.getElementById('main-nav').classList.remove('open');
             });
 
-            // Interaction: Magnetic Effect (PC Only)
             if (window.matchMedia("(hover: hover)").matches) {
                 applyMagneticEffect(link);
             }
 
-            // Scramble Entrance - delay based on foundCount
             const delay = foundCount * 50;
             scrambleText(link, title, delay);
 
-            // Sync Logo with First Item
             if (foundCount === 0) {
                 scrambleText(goIntro, "B A E K", 0, 0.5);
             }
 
-            // Animation Delay (Stagger)
             li.style.animationDelay = `${0.3 + (foundCount * 0.04)}s`;
 
             li.appendChild(link);
             listContainer.appendChild(li);
 
-            // Auto-load Title Logic
+            // Auto-load Title Logic (Load first available)
             if (!firstLoaded) {
+                log(`  -> Auto-loading #${work.index}`);
                 viewer.src = work.filename;
                 link.classList.add('active');
                 firstLoaded = true;
             }
 
             foundCount++;
-        } catch (e) { console.error("Error loading work details", e); }
+        } catch (e) {
+            log(`ERROR loading #${work.index}: ${e.message}`);
+            console.error(e);
+        }
     }
-    // Fetches complete
+    log("All Done.");
+
+    // Failsafe: Ensure loader lifts even if iframe blocks
+    setTimeout(() => {
+        hideLoader();
+    }, 1000);
 }
 
 // --- Global Loader Logic ---
@@ -236,8 +273,24 @@ function initSlider() {
     const slider = document.getElementById('app-slider');
     const goIntro = document.getElementById('go-intro');
     const goBack = document.getElementById('go-back');
-    goIntro.addEventListener('click', () => { slider.style.transform = 'translateX(-100vw)'; });
-    goBack.addEventListener('click', () => { slider.style.transform = 'translateX(0)'; });
+    const viewer = document.getElementById('art-viewer');
+
+    function toggleIframeAudio(shouldPlay) {
+        if (viewer && viewer.contentWindow) {
+            viewer.contentWindow.postMessage(shouldPlay ? 'UNMUTE' : 'MUTE', '*');
+        }
+    }
+
+
+    goIntro.addEventListener('click', () => {
+        slider.style.transform = 'translateX(-100vw)';
+        toggleIframeAudio(false); // Mute
+    });
+
+    goBack.addEventListener('click', () => {
+        slider.style.transform = 'translateX(0)';
+        toggleIframeAudio(true); // Unmute
+    });
 }
 
 function initMobileMenu() {

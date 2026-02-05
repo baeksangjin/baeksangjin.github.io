@@ -2,15 +2,36 @@
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Primary Order</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Primary Order</title>
+  <script>
+    window.audioCtx = null;
+    const originalAudioContext = window.AudioContext || window.webkitAudioContext;
+    window.AudioContext = function () {
+      const ctx = new originalAudioContext();
+      window.audioCtx = ctx;
+      return ctx;
+    }
+    window.webkitAudioContext = window.AudioContext;
+    window.addEventListener('message', function (e) {
+      if (e.data === 'MUTE' && window.audioCtx && window.audioCtx.state === 'running') window.audioCtx.suspend();
+      if (e.data === 'UNMUTE' && window.audioCtx && window.audioCtx.state === 'suspended') window.audioCtx.resume();
+    });
+  </script>
   <script type="module" crossorigin src="./assets/index-BoECBpmb.js"></script>
   <link rel="stylesheet" crossorigin href="./assets/index-QYubgmgR.css">
+  <style>
+    body {
+      background-color: #FCFCFC !important;
+      color: #000000 !important;
+    }
+  </style>
 </head>
 
 <body>
-    <div id="root"></div>
+  <div id="root"></div>
+  <div id="root"></div>
 </body>
 
 </html>

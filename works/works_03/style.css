@@ -1,0 +1,12 @@
+body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    /* Hide scrollbars */
+    background-color: #FFFFFF;
+}
+
+canvas {
+    display: block;
+    touch-action: none;
+}
