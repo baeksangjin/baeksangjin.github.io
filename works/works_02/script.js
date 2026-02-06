@@ -338,8 +338,15 @@ function drawBox(body) {
     translate(body.position.x, body.position.y);
     rotate(body.angle);
     rectMode(CENTER);
-    stroke(60); // Optical thinning (Dark Gray instead of Black)
-    strokeWeight(1);
+
+    // Remove stroke for Red to keep it pure 'My Red' (#EB0013)
+    if (body.color === '#EB0013') {
+        noStroke();
+    } else {
+        stroke(60); // Optical thinning for white boxes
+        strokeWeight(1);
+    }
+
     fill(body.color);
     rect(0, 0, body.width, body.height);
     pop();

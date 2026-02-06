@@ -2,9 +2,109 @@ document.addEventListener('DOMContentLoaded', () => {
     initPortfolio();
     initSlider();
     initMobileMenu();
+    initIntroScroll();
     initAudio();
     // initLiveTimer(); // Removed per user request
 });
+
+function initIntroScroll() {
+    const scrollContainer = document.getElementById('intro-scroll-content');
+    const introTitle = document.getElementById('huge-title');
+
+    if (!scrollContainer || !introTitle) return;
+
+    // Reset Metrics on Resize/Load
+    const resetMetrics = () => { delete introTitle.dataset.baseHeight; };
+    window.addEventListener('resize', resetMetrics);
+    setTimeout(resetMetrics, 500);
+
+    // --- Momentum Scrolling Variables ---
+    let targetScroll = 0;
+    let currentScroll = 0;
+    let isAnimating = false;
+
+    // 1. Capture Target Scroll (Input)
+    scrollContainer.addEventListener('scroll', () => {
+        targetScroll = scrollContainer.scrollTop;
+        if (!isAnimating) {
+            isAnimating = true;
+            requestAnimationFrame(animateIntro);
+        }
+    }, { passive: true });
+
+    // 2. Animation Loop (Lerp + Logic)
+    function animateIntro() {
+        // Lerp factor: 0.1 (Lazy) to 0.2 (Responsive)
+        // A lower value (0.08) creates a "heavy/luxurious" feel
+        const lerpFactor = 0.05;
+
+        // Interpolate
+        currentScroll += (targetScroll - currentScroll) * lerpFactor;
+
+        // Stop loop if close enough (Precision 0.5px)
+        if (Math.abs(targetScroll - currentScroll) < 0.5) {
+            currentScroll = targetScroll; // Snap to finish
+            isAnimating = targetScroll > 0; // If unscrolled, stop completely. Else keep drift check? 
+            // Better: just stop.
+            if (Math.abs(targetScroll - currentScroll) < 0.1) isAnimating = false;
+        }
+
+        // Loop safety: Always keep running if still far
+        if (Math.abs(targetScroll - currentScroll) >= 0.1) {
+            requestAnimationFrame(animateIntro);
+        } else {
+            isAnimating = false;
+        }
+
+
+        // --- Use currentScroll for Calculation ---
+        const viewportH = window.innerHeight;
+
+        // Timeline: 40% (PC) vs 60% (Mobile) of Viewport
+        // Must match CSS #intro-spacer height
+        const isMobile = window.innerWidth <= 768;
+        const scrollRatio = isMobile ? 0.6 : 0.4;
+        const animDuration = viewportH * scrollRatio;
+
+        let progress = Math.min(Math.max(currentScroll / animDuration, 0), 1);
+
+        // Raised Cosine for ultra-smooth 0 -> 1 -> 0 transition
+        // progress 0 -> wave 0 (start)
+        // progress 0.5 -> wave 1 (peak)
+        // progress 1 -> wave 0 (end)
+        const wave = (1 - Math.cos(progress * Math.PI * 2)) / 2;
+
+        // Determine phase for lift trick
+        let phase = progress <= 0.5 ? 'stretch' : 'shrink';
+
+        // Dynamic Max Scale Calculation
+        if (!introTitle.dataset.baseHeight) {
+            introTitle.style.transform = 'scaleY(1)';
+            introTitle.dataset.baseHeight = introTitle.offsetHeight;
+        }
+
+        const baseH = parseFloat(introTitle.dataset.baseHeight) || 100;
+
+        // Dynamic Top Gap Calculation
+        // PC: Header(35) + Button(~30) + Gap(60) = 125
+        // Mobile: Header(20) + Button(~30) + Gap(40) = 90
+        const topGap = isMobile ? 90 : 125;
+        const targetH = viewportH - topGap;
+
+        const maxScale = Math.max(targetH / baseH, 1);
+
+        // Use smooth wave directly
+        const currentScale = 1 + ((maxScale - 1) * wave);
+
+        if (phase === 'shrink') {
+            // Lift Trick: Stick to Top while shrinking
+            const lift = baseH * (maxScale - currentScale);
+            introTitle.style.transform = `translateY(-${lift}px) scaleY(${currentScale})`;
+        } else {
+            introTitle.style.transform = `scaleY(${currentScale})`;
+        }
+    }
+}
 
 // --- Live Timer Logic ---
 /* Live Timer Logic Removed */
@@ -55,7 +155,6 @@ async function initPortfolio() {
         const line = document.createElement('div');
         line.textContent = `> ${msg}`;
         debugDiv.appendChild(line);
-        console.log(msg);
     }
 
     log("Init Portfolio...");
@@ -275,6 +374,14 @@ function initSlider() {
     const goBack = document.getElementById('go-back');
     const viewer = document.getElementById('art-viewer');
 
+    // Select Intro Header to toggle visibility (Fixes overlap)
+    const introHeader = document.querySelector('#intro-screen .screen-header');
+    if (introHeader) {
+        introHeader.style.opacity = '0';
+        introHeader.style.pointerEvents = 'none';
+        introHeader.style.transition = 'opacity 0.3s';
+    }
+
     function toggleIframeAudio(shouldPlay) {
         if (viewer && viewer.contentWindow) {
             viewer.contentWindow.postMessage(shouldPlay ? 'UNMUTE' : 'MUTE', '*');
@@ -285,11 +392,19 @@ function initSlider() {
     goIntro.addEventListener('click', () => {
         slider.style.transform = 'translateX(-100vw)';
         toggleIframeAudio(false); // Mute
+        if (introHeader) {
+            introHeader.style.opacity = '1';
+            introHeader.style.pointerEvents = 'auto';
+        }
     });
 
     goBack.addEventListener('click', () => {
         slider.style.transform = 'translateX(0)';
         toggleIframeAudio(true); // Unmute
+        if (introHeader) {
+            introHeader.style.opacity = '0';
+            introHeader.style.pointerEvents = 'none';
+        }
     });
 }
 

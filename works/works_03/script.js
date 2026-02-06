@@ -6,27 +6,39 @@ const CONFIG = {
     forceStrength: 0.5,
     thresholdY: 0.5,
     colors: {
-        bg: '#FFFFFF',
+        bg: '#FCFCFC',
         black: '#000000',
         red: '#EB0013'
     }
 };
 
-let particles = [];
+let particlesBlack = [];
+let particlesRed = [];
 let thresholdLine;
 
 function setup() {
-    createCanvas(windowWidth, windowHeight);
+    let cnv = createCanvas(windowWidth, windowHeight);
     thresholdLine = height * CONFIG.thresholdY;
 
     // Responsive Particle Count
     let pCount = (windowWidth < 800) ? CONFIG.mobileCount : CONFIG.pcCount;
 
-    // Initialize Particles
+    // Initialize Particles - Split into Batches
     for (let i = 0; i < pCount; i++) {
         let isRed = random(1) < CONFIG.redRatio;
-        particles.push(new Particle(random(width), random(height, height * 1.5), isRed));
+        let p = new Particle(random(width), random(height, height * 1.5), isRed);
+        if (isRed) {
+            particlesRed.push(p);
+        } else {
+            particlesBlack.push(p);
+        }
     }
+
+    // --- FORCE SAFARI TOUCH FIX ---
+    // Prevent default scrolling aggressively with non-passive listeners
+    cnv.elt.addEventListener('touchstart', function (e) { e.preventDefault(); }, { passive: false });
+    cnv.elt.addEventListener('touchmove', function (e) { e.preventDefault(); }, { passive: false });
+    cnv.elt.addEventListener('touchend', function (e) { e.preventDefault(); }, { passive: false });
 }
 
 function draw() {
@@ -35,21 +47,33 @@ function draw() {
     // Update Threshold on resize
     thresholdLine = height * CONFIG.thresholdY;
 
-    // Mouse Vector
-    let mouse = createVector(mouseX, mouseY);
+    // Mouse Coordinates
+    let mx = mouseX;
+    let my = mouseY;
     let isPressed = mouseIsPressed;
 
     // Ghost Touch Fix: On mobile, if no fingers down, move "mouse" offscreen
     if (windowWidth < 800 && touches.length === 0) {
-        mouse = createVector(-5000, -5000);
+        mx = -5000;
+        my = -5000;
     }
 
     // Global Tide (Harmonics)
     let t = frameCount * 0.005;
     let globalTide = sin(t) + sin(t * 3.2) * 0.4 + noise(t);
 
-    for (let p of particles) {
-        p.interact(mouse, isPressed);
+    // --- BATCH 1: BLACK PARTICLES ---
+    stroke(CONFIG.colors.black);
+    for (let p of particlesBlack) {
+        p.interact(mx, my, isPressed);
+        p.update(globalTide);
+        p.display();
+    }
+
+    // --- BATCH 2: RED PARTICLES ---
+    stroke(CONFIG.colors.red);
+    for (let p of particlesRed) {
+        p.interact(mx, my, isPressed);
         p.update(globalTide);
         p.display();
     }
@@ -60,11 +84,25 @@ function windowResized() {
     thresholdLine = height * CONFIG.thresholdY;
 }
 
+// --- Mobile Safari Touch Fix ---
+// Explicitly prevent default browser behaviors (Scroll/Zoom)
+// so that the canvas receives the raw Drag events.
+function touchStarted() {
+    return false;
+}
+
+function touchMoved() {
+    return false;
+}
+
 class Particle {
     constructor(x, y, isRed) {
-        this.pos = createVector(x, y);
-        this.vel = createVector(0, 0);
-        this.acc = createVector(0, 0);
+        this.x = x;
+        this.y = y;
+        this.vx = 0;
+        this.vy = 0;
+        this.ax = 0;
+        this.ay = 0;
         this.isRed = isRed;
         this.size = random(1.5, 3);
         this.maxSpeed = random(2, 4);
@@ -72,10 +110,12 @@ class Particle {
         this.successX = 0;
     }
 
-    interact(mouse, isPressed) {
+    interact(mx, my, isPressed) {
         if (this.isSuccess) return;
 
-        let d = this.pos.dist(mouse);
+        let dx = this.x - mx;
+        let dy = this.y - my;
+        let distSq = dx * dx + dy * dy;
 
         // Responsive Radius
         // Mobile: 150px (Gathering Swarm)
@@ -88,28 +128,32 @@ class Particle {
             radius = 120;
         }
 
-        if (d < radius) {
-            let force = p5.Vector.sub(this.pos, mouse);
-            force.normalize();
+        if (distSq < radius * radius) {
+            let d = Math.sqrt(distSq);
+            if (d === 0) d = 0.001; // Avoid division by zero
+
+            // Normalize direction (force vector)
+            let fx = dx / d;
+            let fy = dy / d;
 
             let strength = map(d, 0, radius, 5, 0);
 
             if (isPressed) {
                 // Unified "Gather & Drag" Logic
-                // Always attract when pressed.
                 // Negative = Attract
-                force.mult(strength * -1.2);
+                let mag = strength * -1.2;
+                fx *= mag;
+                fy *= mag;
             } else {
                 // Passive Hover Repel (Disrupt)
-                force.mult(strength * 0.5);
+                let mag = strength * 0.5;
+                fx *= mag;
+                fy *= mag;
             }
 
-            this.applyForce(force);
+            this.ax += fx;
+            this.ay += fy;
         }
-    }
-
-    applyForce(force) {
-        this.acc.add(force);
     }
 
     update(globalTide) {
@@ -118,71 +162,98 @@ class Particle {
             // Erosion
             if (random(1) < 0.01) {
                 this.isSuccess = false;
-                this.pos.y = thresholdLine + random(10, 100);
-                this.vel.set(random(-1, 1), random(1, 3));
+                this.y = thresholdLine + random(10, 100);
+                this.vx = random(-1, 1);
+                this.vy = random(1, 3);
             }
             return;
         }
 
         // --- CASE 2: NATURAL FLOW FIELD (Weighted) ---
-        let n = noise(this.pos.x * 0.003, this.pos.y * 0.003, frameCount * 0.002);
+        let n = noise(this.x * 0.003, this.y * 0.003, frameCount * 0.002);
         let angle = map(n, 0, 1, 0, TWO_PI * 4);
 
-        let desired = p5.Vector.fromAngle(angle);
-        desired.mult(this.maxSpeed);
+        let desiredX = cos(angle) * this.maxSpeed;
+        let desiredY = sin(angle) * this.maxSpeed;
 
         // Steering (Inertia)
-        let steer = p5.Vector.sub(desired, this.vel);
-        steer.limit(0.08);
+        let steerX = desiredX - this.vx;
+        let steerY = desiredY - this.vy;
 
-        this.applyForce(steer);
+        // Limit steer
+        let steerMagSq = steerX * steerX + steerY * steerY;
+        let limit = 0.08;
+        if (steerMagSq > limit * limit) {
+            let steerMag = Math.sqrt(steerMagSq);
+            steerX = (steerX / steerMag) * limit;
+            steerY = (steerY / steerMag) * limit;
+        }
+
+        this.ax += steerX;
+        this.ay += steerY;
 
         // Buoyancy
-        this.applyForce(createVector(0, -0.012));
+        this.ay += -0.012;
 
         // Physics
-        this.vel.add(this.acc);
-        this.vel.limit(this.maxSpeed);
-        this.pos.add(this.vel);
-        this.acc.mult(0);
+        this.vx += this.ax;
+        this.vy += this.ay;
+
+        // Limit Velocity
+        let velMagSq = this.vx * this.vx + this.vy * this.vy;
+        if (velMagSq > this.maxSpeed * this.maxSpeed) {
+            let velMag = Math.sqrt(velMagSq);
+            this.vx = (this.vx / velMag) * this.maxSpeed;
+            this.vy = (this.vy / velMag) * this.maxSpeed;
+        }
+
+        this.x += this.vx;
+        this.y += this.vy;
+
+        // Clear Acc
+        this.ax = 0;
+        this.ay = 0;
 
         // EDGE RESPAWN (Rising Flow - Bottom Only)
         // Strictly enforcing Bottom Spawn
-        let offScreen = (this.pos.x < -50 || this.pos.x > width + 50 || this.pos.y > height + 50 || this.pos.y < -50);
+        let offScreen = (this.x < -50 || this.x > width + 50 || this.y > height + 50 || this.y < -50);
 
         if (offScreen) {
-            this.pos.x = random(width);
-            this.pos.y = height + 10; // Start below screen
-            this.vel.set(random(-1, 1), random(-3, -5)); // Shoot Upward
+            this.x = random(width);
+            this.y = height + 10; // Start below screen
+            this.vx = random(-1, 1);
+            this.vy = random(-3, -5); // Shoot Upward
 
             this.maxSpeed = random(2, 4);
-            this.acc.mult(0);
+            this.ax = 0;
+            this.ay = 0;
         }
 
         // THRESHOLD
-        if (this.pos.y <= thresholdLine) {
+        if (this.y <= thresholdLine) {
             this.isSuccess = true;
-            this.successX = this.pos.x;
-            this.pos.y = thresholdLine;
-            this.vel.mult(0);
+            this.successX = this.x;
+            this.y = thresholdLine;
+            this.vx = 0;
+            this.vy = 0;
         }
     }
 
     display() {
         if (this.isSuccess) {
             // Vertical Line
-            stroke(this.isRed ? CONFIG.colors.red : CONFIG.colors.black);
+            // stroke() is handled globally
             strokeWeight(1);
             let jit = random(-0.5, 0.5);
             line(this.successX + jit, 0, this.successX + jit, thresholdLine);
         } else {
             // Flying Streak
-            stroke(this.isRed ? CONFIG.colors.red : CONFIG.colors.black);
+            // stroke() is handled globally
             strokeWeight(random(0.5, 1.5));
 
-            let tailX = this.pos.x - this.vel.x * 2;
-            let tailY = this.pos.y - this.vel.y * 2;
-            line(this.pos.x, this.pos.y, tailX, tailY);
+            let tailX = this.x - this.vx * 2;
+            let tailY = this.y - this.vy * 2;
+            line(this.x, this.y, tailX, tailY);
         }
     }
 }
