@@ -22,15 +22,52 @@ function initIntroScroll() {
     let targetScroll = 0;
     let currentScroll = 0;
     let isAnimating = false;
+    let lastScrollTop = 0;
+    let hasAutoRevealed = false;
 
     // 1. Capture Target Scroll (Input)
     scrollContainer.addEventListener('scroll', () => {
         targetScroll = scrollContainer.scrollTop;
+
+        // Scroll Trigger Logic for Auto Reveal
+        const viewportH = window.innerHeight;
+        const isMobile = window.innerWidth <= 768;
+        const scrollRatio = isMobile ? 0.6 : 0.4;
+        const animDuration = viewportH * scrollRatio; // End of Shrink
+
+        const isScrollingDown = targetScroll > lastScrollTop;
+        lastScrollTop = targetScroll;
+
+        // Trigger when BAEK shrink is nearly done (95%)
+        if (isScrollingDown && targetScroll >= animDuration * 0.95 && !hasAutoRevealed) {
+            hasAutoRevealed = true;
+
+            // Calculate Target: Where About Section fully covers or tops up
+            // About starts at: Visual(100vh) + Spacer(animDuration) relative to flow
+            // But visually, we want it to scroll into view.
+            // Target Scroll Position = Height of Visual + Spacer
+            // This brings the top of About Section to the top of the viewport.
+            // However, sticky header might cover it? About is z-index 10.
+            const revealTarget = viewportH + animDuration;
+
+            // Smooth Scroll to Reveal
+            scrollContainer.scrollTo({
+                top: revealTarget,
+                behavior: 'smooth'
+            });
+        }
+
+        // Reset trigger if scrolled back up significantly
+        if (targetScroll < animDuration * 0.5) {
+            hasAutoRevealed = false;
+        }
+
         if (!isAnimating) {
             isAnimating = true;
             requestAnimationFrame(animateIntro);
         }
     }, { passive: true });
+
 
     // 2. Animation Loop (Lerp + Logic)
     function animateIntro() {
@@ -86,9 +123,9 @@ function initIntroScroll() {
         const baseH = parseFloat(introTitle.dataset.baseHeight) || 100;
 
         // Dynamic Top Gap Calculation
-        // PC: Header(35) + Button(~30) + Gap(60) = 125
-        // Mobile: Header(20) + Button(~30) + Gap(40) = 90
-        const topGap = isMobile ? 90 : 125;
+        // PC: Header(35) + Button(~30) + Gap(80) = 145 (Increased by 20px)
+        // Mobile: Header(20) + Button(~30) + Gap(60) = 110 (Increased by 20px)
+        const topGap = isMobile ? 110 : 145;
         const targetH = viewportH - topGap;
 
         const maxScale = Math.max(targetH / baseH, 1);

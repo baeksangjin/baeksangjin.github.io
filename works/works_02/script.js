@@ -339,9 +339,10 @@ function drawBox(body) {
     rotate(body.angle);
     rectMode(CENTER);
 
-    // Remove stroke for Red to keep it pure 'My Red' (#EB0013)
+    // Apply stroke
     if (body.color === '#EB0013') {
-        noStroke();
+        stroke(0);
+        strokeWeight(1);
     } else {
         stroke(60); // Optical thinning for white boxes
         strokeWeight(1);
