@@ -4,6 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initMobileMenu();
     initIntroScroll();
     initAudio();
+    initLangToggle();
     // initLiveTimer(); // Removed per user request
 });
 
@@ -267,7 +268,7 @@ async function initPortfolio() {
 
             // Initial state empty for scrambling
             link.textContent = "";
-            link.href = "#";
+            // link.href = "#"; // Removed to hide status bar on hover
 
             // Interaction: Open Work
             link.addEventListener('click', (e) => {
@@ -537,3 +538,35 @@ function scrambleText(element, finalString, delay, speed = 1) {
         }, 60); // 60ms interval (2x slower tick)
     }, delay);
 }
+
+function initMobileTapToggle() {
+    const aboutSection = document.getElementById('about-section');
+    const krSection = document.getElementById('about-kr');
+    const enSection = document.getElementById('about-en');
+
+    if (!aboutSection || !krSection || !enSection) return;
+
+    // Initial state: ensure KR is shown, EN is hidden on mobile load if not set
+    // But CSS should handle this. We'll just toggle.
+
+    aboutSection.addEventListener('click', () => {
+        // Only trigger on mobile
+        if (window.innerWidth > 768) return;
+
+        // Toggle logic
+        const isKrVisible = krSection.style.display !== 'none';
+
+        if (isKrVisible) {
+            krSection.style.display = 'none';
+            enSection.style.display = 'block';
+        } else {
+            krSection.style.display = 'block';
+            enSection.style.display = 'none';
+        }
+    });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    initIntroScroll();
+    initMobileTapToggle();
+});
